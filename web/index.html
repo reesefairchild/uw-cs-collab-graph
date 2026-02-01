@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UW CS Collaboration Graph</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      height: 100vh;
+    }
+
+    #left {
+      position: relative;
+      overflow: hidden;
+    }
+
+    #toolbar {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background: rgba(255,255,255,0.92);
+      padding: 10px;
+      border-radius: 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      z-index: 10;
+    }
+
+    #search {
+      width: 260px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      outline: none;
+    }
+
+    #resetBtn {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+    }
+
+    #right {
+      border-left: 1px solid #eee;
+      padding: 16px;
+      overflow: auto;
+    }
+
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #f3f3f3;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    .row {
+      margin-top: 14px;
+    }
+
+    .collab {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px dashed #eee;
+      font-size: 14px;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      background: #fafafa;
+    }
+
+    .link {
+      stroke: #bbb;
+      stroke-opacity: 0.5;
+    }
+
+    .node {
+      stroke: white;
+      stroke-width: 1.5px;
+      cursor: pointer;
+    }
+
+    .label {
+      font-size: 11px;
+      pointer-events: none;
+      fill: #333;
+    }
+
+    .highlight {
+      stroke: #000;
+      stroke-width: 3px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="left">
+    <div id="toolbar">
+      <input id="search" placeholder="Search a researcher..." />
+      <button id="resetBtn">Reset</button>
+    </div>
+    <svg id="svg"></svg>
+  </div>
+
+  <div id="right">
+    <h2>UW CS Collaboration Graph</h2>
+    <div class="muted">
+      Nodes = researchers & coauthors (from Semantic Scholar).<br/>
+      Edge thickness = number of coauthored papers (in the dataset).
+    </div>
+
+    <div class="row">
+      <div class="pill" id="statsPill">Loading…</div>
+    </div>
+
+    <div class="row">
+      <h2 id="selectedTitle">Click a node</h2>
+      <div class="muted" id="selectedMeta"></div>
+    </div>
+
+    <div class="row">
+      <h2>Top collaborators</h2>
+      <div id="collabList" class="muted">None selected.</div>
+    </div>
+  </div>
+
+<script>
+(async function () {
+  const width = document.getElementById("left").clientWidth;
+  const height = document.getElementById("left").clientHeight;
+
+  const svg = d3.select("#svg")
+    .attr("viewBox", [0, 0, width, height]);
+
+  const g = svg.append("g");
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.1, 5])
+    .on("zoom", (event) => g.attr("transform", event.transform));
+
+  svg.call(zoom);
+
+  const graph = await d3.json("./graph.json");
+
+  document.getElementById("statsPill").textContent =
+    `${graph.nodes.length} nodes • ${graph.links.length} edges`;
+
+  // Build quick lookup for weights between nodes
+  const adj = new Map(); // key "a|b" -> weight
+  function key(a, b) {
+    return (a < b) ? `${a}|${b}` : `${b}|${a}`;
+  }
+  graph.links.forEach(l => {
+    adj.set(key(String(l.source), String(l.target)), l.weight);
+  });
+
+  // D3 force simulation
+  const sim = d3.forceSimulation(graph.nodes)
+    .force("link", d3.forceLink(graph.links).id(d => String(d.id)).distance(90))
+    .force("charge", d3.forceManyBody().strength(-220))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collide", d3.forceCollide().radius(d => 6 + Math.sqrt(d.degree || 1) * 2));
+
+  // Scale edge thickness by weight
+  const wExtent = d3.extent(graph.links, d => d.weight);
+  const linkWidth = d3.scaleLinear()
+    .domain(wExtent)
+    .range([1, 6]);
+
+  // Color by type
+  function nodeColor(d) {
+    return d.type === "uw" ? "#4b8bff" : "#888";
+  }
+
+  // Size by degree
+  const degreeExtent = d3.extent(graph.nodes, d => d.degree || 1);
+  const nodeRadius = d3.scaleSqrt()
+    .domain(degreeExtent)
+    .range([4, 18]);
+
+  const link = g.append("g")
+    .attr("stroke-linecap", "round")
+    .selectAll("line")
+    .data(graph.links)
+    .join("line")
+    .attr("class", "link")
+    .attr("stroke-width", d => linkWidth(d.weight));
+
+  const node = g.append("g")
+    .selectAll("circle")
+    .data(graph.nodes)
+    .join("circle")
+    .attr("class", "node")
+    .attr("r", d => nodeRadius(d.degree || 1))
+    .attr("fill", d => nodeColor(d))
+    .call(d3.drag()
+      .on("start", dragStarted)
+      .on("drag", dragged)
+      .on("end", dragEnded)
+    );
+
+  const label = g.append("g")
+    .selectAll("text")
+    .data(graph.nodes)
+    .join("text")
+    .attr("class", "label")
+    .text(d => d.name)
+    .attr("dx", 10)
+    .attr("dy", 4)
+    .style("opacity", d => (d.type === "uw" ? 1 : 0.0)); // show UW names only
+
+  node.on("click", (event, d) => {
+    selectNode(d);
+  });
+
+  function selectNode(d) {
+    // highlight node
+    node.classed("highlight", n => n.id === d.id);
+
+    document.getElementById("selectedTitle").textContent = d.name;
+    document.getElementById("selectedMeta").textContent =
+      `Type: ${d.type} • Degree: ${d.degree ?? 0}`;
+
+    // Find neighbors and weights
+    const neighbors = [];
+    graph.links.forEach(l => {
+      const s = (typeof l.source === "object") ? String(l.source.id) : String(l.source);
+      const t = (typeof l.target === "object") ? String(l.target.id) : String(l.target);
+
+      if (s === String(d.id)) {
+        neighbors.push({ id: t, weight: l.weight });
+      } else if (t === String(d.id)) {
+        neighbors.push({ id: s, weight: l.weight });
+      }
+    });
+
+    // Map id -> name
+    const idToNode = new Map(graph.nodes.map(n => [String(n.id), n]));
+
+    neighbors.sort((a, b) => b.weight - a.weight);
+
+    const top = neighbors.slice(0, 15);
+
+    const collabDiv = document.getElementById("collabList");
+    if (top.length === 0) {
+      collabDiv.textContent = "No collaborators in this dataset.";
+      return;
+    }
+
+    collabDiv.innerHTML = "";
+    top.forEach(item => {
+      const person = idToNode.get(String(item.id));
+      const row = document.createElement("div");
+      row.className = "collab";
+      row.innerHTML = `
+        <span>${person ? person.name : item.id}</span>
+        <span>${item.weight}</span>
+      `;
+      collabDiv.appendChild(row);
+    });
+  }
+
+  // Search
+  const search = document.getElementById("search");
+  search.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    if (!q) {
+      node.style("opacity", 1);
+      label.style("opacity", d => (d.type === "uw" ? 1 : 0.0));
+      return;
+    }
+
+    node.style("opacity", d => d.name.toLowerCase().includes(q) ? 1 : 0.12);
+    label.style("opacity", d => d.name.toLowerCase().includes(q) ? 1 : 0.0);
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", () => {
+    search.value = "";
+    node.style("opacity", 1);
+    label.style("opacity", d => (d.type === "uw" ? 1 : 0.0));
+    node.classed("highlight", false);
+    document.getElementById("selectedTitle").textContent = "Click a node";
+    document.getElementById("selectedMeta").textContent = "";
+    document.getElementById("collabList").textContent = "None selected.";
+    svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+  });
+
+  // Simulation tick
+  sim.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    node
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+
+    label
+      .attr("x", d => d.x)
+      .attr("y", d => d.y);
+  });
+
+  function dragStarted(event, d) {
+    if (!event.active) sim.alphaTarget(0.2).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
+
+  function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+  }
+
+  function dragEnded(event, d) {
+    if (!event.active) sim.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+Naomi Alterman
+Tim Althoff
+Ruth E. Anderson
+Tom Anderson
+Mitali Bafna
+Magdalena Balazinska
+Leilani Battle
+Paul Beame
+Gilbert Bernstein
+Byron Boots
+Lauren Bricker
+Nathan Brunelle
+Maya Cakmak
+Luis Ceze
+Andrea Coladangelo
+Brian Curless
+Simon Shaolei Du
+Michael Ernst
+Ali Farhadi
+James Fogarty
+Dieter Fox
+Jon E. Froehlich
+Elba Garza
+Shyam Gollakota
+Matthew Golub
+D. Grossman
+Abhishek Gupta
+Hannaneh Hajishirzi
+Megan Hazen
+Jeffrey Heer
+Kurtis Heimerl
+Justin Hsia
+Vikram Iyer
+Kevin Jamieson
+Natasha Jaques
+René Just
+Anna R. Karlin
+Baris Kasikci
+Ira Kemelmacher-Shlizerman
+Pang Wei Koh
+David Kohlbrenner
+Ranjay Krishna
+Arvind Krishnamurthy
+Su-In Lee
+Yin Tat Lee
+Jerry Li
+Huijia Lin
+Kevin Lin
+Ryan Maas
+Ratul Mahajan
+Jen Mankoff
+Barbara Mones
+Jamie Morgenstern
+Sara Mostafavi
+Miya Natsuhara
+Chinmay Nirkhe
+Jeff Nivala
+Sewoong Oh
+Mark Oskin
+Shayan Oveis Gharan
+Shwetak Patel
+Simon Peter
+Zoran Popović
+Anup Rao
+Rajesh P.N. Rao
+Stuart Reges
+Katharina Reinecke
+Franziska Roesner
+Thomas Rothvoss
+Adrian Salguero
+Georg Seelig
+Steven Seitz
+L. Shapiro
+R. Benjamin Shapiro
+Joshua Smith
+Noah A. Smith
+Siddhartha Srinivasa
+Dan Suciu
+Steve Tanimoto
+Zachary Tatlock
+Michael Bedford Taylor
+Stefano Tessaro
+Chris Thachuk
+Yulia Tsvetkov
+Nirvan Tyagi
+Matt Wang
+Sheng Wang
+Stephanie Wang
+Robbie Weber
+James Weichert
+James R. Wilcox
+Brett Wortzman
+Luke Zettlemoyer
+Amy Zhang
